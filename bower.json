@@ -1,0 +1,25 @@
+{
+  "name": "workoutlog_angular",
+  "description": "",
+  "main": "app.js",
+  "authors": [
+    "Michelle Hoelzer"
+  ],
+  "license": "MIT",
+  "homepage": "",
+  "private": true,
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests"
+  ],
+  "dependencies": {
+    "angular": "^1.6.5",
+    "angular-loader": "^1.5.8",
+    "angular-ui-router": "^0.3.1",
+    "bootstrap": "^3.3.7",
+    "angular-socket-io": "^0.7.0"
+  }
+}
