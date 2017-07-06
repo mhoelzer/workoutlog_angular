@@ -2,7 +2,8 @@
 	var app = angular.module('workoutlog',[
 		'ui.router',
 		'workoutlog.auth.signup',
-		'workoutlog.auth.signin'
+		'workoutlog.auth.signin',
+		'workoutlog.define'
 	]);
 	function config($urlRouterProvider){
 		$urlRouterProvider.otherwise('/signin');
@@ -11,8 +12,8 @@
 	config.$inject = ['$urlRouterProvider'];
 	app.config(config);
 	app.constant('API_BASE', '//localhost:3000/api/');
+	
 })();
-
 (function(){
 	angular
 		.module('workoutlog.auth.signin', ['ui.router'])
@@ -91,6 +92,53 @@
 		SignUpController.$inject = ['$state', 'UsersService'];
 })();
 // this will be the js file that “powers” the custom directive
+(function(){
+	angular.module('workoutlog.define', [
+		'ui.router'
+	]) 
+	.config(defineConfig)
+	
+	function defineConfig($stateProvider){
+		$stateProvider
+			.state('define',{
+				url: '/define',
+				templateUrl: '/components/define/define.html',
+				controller: DefineController,
+				controllerAs: 'ctrl',
+				bindToController: this,
+				resolve: [
+					'CurrentUser', '$q', '$state',
+					function(CurrentUser, $q, $state){
+						var deferred = $q.defer();
+						if (CurrentUser.isSignedIn()){
+							deferred.resolve();
+						} else {
+							deferred.reject();
+							$state.go('signin');
+						}
+						return deferred.promise;
+					}
+				]
+			})
+	};
+
+	defineConfig.$inject = ['$stateProvider'];
+
+	function DefineController($state, DefineService){
+		var vm = this;
+		vm.message = "Define a workout category here";
+		vm.saved = false; 
+		vm.definition = {};
+		vm.save = function() {
+			DefineService.save(vm.definition)
+				.then(function(){
+					vm.saved = true;
+					$state.go('logs')
+				});
+		};
+	}
+	DefineController.$inject = ['$state', 'DefineService'];
+})();
 
 
 (function(){
@@ -148,7 +196,37 @@
 			return new CurrentUser();
 		}]);
 })();
+(function(){
+	angular.module('workoutlog')
+		//  JavaScript has a window object but it is a global variable.  This makes testing and maintenance difficult.  $window is Angular’s window object and helps increase testing and maintenance by controlling the scope.
+		// the CU is name of service. can call w/e
+		.service('DefineService', DefineService);
+		
+		DefineService.$inject = ['$http', 'API_BASE'];
+		function DefineService($http, API_BASE){
+			var defineService = this;
+			defineService.userDefinitions = [];
+			
+			defineService.save = function(definition){
+				return $http.post(API_BASE + 'definition',{
+					definition: definition
+				}).then(function(response){
+					defineService.userDefinitions.unshift(response.data);
+				});
+			};
+			
+			defineService.fetch = function(definition){
+				return $http.get(API_BASE + 'definition')
+					.then(function(response){
+						defineService.userDefinitions = response.data;
+					})
+			};
 
+			defineService.getDefinitions = function(){
+				return defineService.userDefinitions;
+			}
+		};
+})();
 
 (function(){
 	angular.module('workoutlog')
