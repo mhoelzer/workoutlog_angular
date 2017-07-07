@@ -34,7 +34,7 @@
 		var vm = this;
 		vm.message = "Define a workout category here";
 		vm.saved = false; 
-		vm.definition = {}};
+		vm.definition = {};
 		vm.save = function() {
 			DefineService.save(vm.definition)
 				.then(function(){

@@ -3,7 +3,8 @@
 		'ui.router',
 		'workoutlog.auth.signup',
 		'workoutlog.auth.signin',
-		'workoutlog.define'
+		'workoutlog.define',
+		'workoutlog.logs'
 	]);
 	function config($urlRouterProvider){
 		$urlRouterProvider.otherwise('/signin');
@@ -12,7 +13,53 @@
 	config.$inject = ['$urlRouterProvider'];
 	app.config(config);
 	app.constant('API_BASE', '//localhost:3000/api/');
+})();
+(function(){
+	angular.module('workoutlog.define', [
+		'ui.router'
+	]) 
+	.config(defineConfig)
 	
+	function defineConfig($stateProvider){
+		$stateProvider
+			.state('define',{
+				url: '/define',
+				templateUrl: '/components/define/define.html',
+				controller: DefineController,
+				controllerAs: 'ctrl',
+				bindToController: this,
+				resolve: [
+					'CurrentUser', '$q', '$state',
+					function(CurrentUser, $q, $state){
+						var deferred = $q.defer();
+						if (CurrentUser.isSignedIn()){
+							deferred.resolve();
+						} else {
+							deferred.reject();
+							$state.go('signin');
+						}
+						return deferred.promise;
+					}
+				]
+			})
+	};
+
+	defineConfig.$inject = ['$stateProvider'];
+
+	function DefineController($state, DefineService){
+		var vm = this;
+		vm.message = "Define a workout category here";
+		vm.saved = false; 
+		vm.definition = {};
+		vm.save = function() {
+			DefineService.save(vm.definition)
+				.then(function(){
+					vm.saved = true;
+					$state.go('logs')
+				});
+		};
+	}
+	DefineController.$inject = ['$state', 'DefineService'];
 })();
 (function(){
 	angular
@@ -92,55 +139,80 @@
 		SignUpController.$inject = ['$state', 'UsersService'];
 })();
 // this will be the js file that “powers” the custom directive
+
 (function(){
-	angular.module('workoutlog.define', [
+	angular.module('workoutlog.logs', [
 		'ui.router'
-	]) 
-	.config(defineConfig)
-	
-	function defineConfig($stateProvider){
+	])
+	.config(logsConfig);
+
+	logsConfig.$inject = ['$stateProvider'];
+	function logsConfig($stateProvider){
 		$stateProvider
-			.state('define',{
-				url: '/define',
-				templateUrl: '/components/define/define.html',
-				controller: DefineController,
+			.state('logs',{
+				url: '/logs',
+				templateUrl: '/components/logs/logs.html',
+				controller: LogsController,
 				controllerAs: 'ctrl',
 				bindToController: this,
-				resolve: [
-					'CurrentUser', '$q', '$state',
-					function(CurrentUser, $q, $state){
-						var deferred = $q.defer();
-						if (CurrentUser.isSignedIn()){
-							deferred.resolve();
-						} else {
-							deferred.reject();
-							$state.go('signin');
+				resolve: {
+					getUserDefinitions: [
+						'DefineService',
+						function(DefineService){
+							return DefineService.fetch();
 						}
-						return deferred.promise;
-					}
-				]
+					]
+				}
 			})
-	};
+			//  Notice in the .state(‘logs/update’) the ‘/:id’.  This is the variable that is passed to $stateParams.id. Notice on the .state(‘logs/update’) that there are two functions that occur on the resolve.  This allows the route to have access to the data of the log being edited.  Also note, that the resolve is getting all user definitions of a workout.
+			.state('logs/update', {
+				url: '/logs/:id', 
+				templateUrl: '/components/logs/log-update.html',
+				controller: LogsController,
+				controllerAs: 'ctrl',
+				bindToController: this,
+				resolve: {
+					getSingleLog: function($stateParams, LogsService){
+						// $stateParams.id allows the application to pass the url and use that as a way to identify an individual workout.  Notice in the .state(‘logs/update’) the ‘/:id’.  This is the variable that is passed to $stateParams.id.
+						return LogsService.fetchOne($stateParams.id);
+					},
+					getUserDefinitions: function(DefineService){
+						return DefineService.fetch();
+					}
+				}
+			});
+	}
 
-	defineConfig.$inject = ['$stateProvider'];
-
-	function DefineController($state, DefineService){
+	LogsController.$inject = ['$state', 'DefineService', 'LogsService'];
+	function LogsController($state, DefineService, LogsService){
 		var vm = this;
-		vm.message = "Define a workout category here";
-		vm.saved = false; 
-		vm.definition = {};
-		vm.save = function() {
-			DefineService.save(vm.definition)
+		vm.saved = false;
+		vm.log = {};
+		vm.UserDefinitions = DefineService.getDefinitions();
+		vm.updateLog = LogsService.getLog();
+		vm.save = function(){
+			LogsService.save(vm.log)
 				.then(function(){
 					vm.saved = true;
-					$state.go('logs')
+					$state.go('history');
+				});
+		};
+
+		// create an update function here
+		vm.updateSingleLog = function() {
+			var logToUpdate = {
+				id: vm.updateLog.id,
+				desc: vm.updateLog.description,
+				result: vm.updateLog.result,
+				def: vm.updateLog.def
+			}
+			LogsService.updateLog(logToUpdate)
+				.then(function(){
+					$state.go('history');
 				});
 		};
 	}
-	DefineController.$inject = ['$state', 'DefineService'];
 })();
-
-
 (function(){
 	angular.module('workoutlog')
 		.factory('AuthInterceptor', ['SessionToken', 'API_BASE',
@@ -227,7 +299,64 @@
 			}
 		};
 })();
+(function(){
+	angular.module('workoutlog')
+		.service('LogsService', LogsService);
 
+		LogsService.$inject = ['$http', 'API_BASE'];
+		function LogsService($http, API_BASE, DefineService){
+			var logsService = this;
+			logsService.workouts = [];
+			logsService.individualLog = {};
+			// saves the log
+			logsService.save = function(log){
+				return $http.post(API_BASE + 'log',{
+					log: log
+				}).then(function(response){
+					logsService.workouts.push(response);
+				});
+			};
+
+			logsService.fetch = function(log){
+				return $http.get(API_BASE + 'log')
+					.then(function(response){
+						logsService.workouts = response.data;
+					});
+			};
+
+			logsService.getLogs = function(){
+				return logsService.workouts;
+			};
+
+			logsService.deleteLogs = function(log){
+				var logIndex = logsService.workouts.indexOf(log);
+				logsService.workouts.splice(logIndex, 1);
+				var deleteData = {log: log};
+				return $http({
+					method: 'DELETE',
+					url: API_BASE + "log",
+					data: JSON.stringify(deleteData),
+					headers: {"Content-Type": "application/json"}
+				});
+			};
+
+			logsService.fetchOne = function(log){
+				// console.log(log);
+				return $http.get(API_BASE + 'log/' +log)
+					.then(function(response){
+						logsService.individualLog = response.data;
+					});
+			};
+
+			logsService.getLog = function(){
+				return logsService.individualLog;
+			};
+
+			logsService.updateLog = function(logToUpdate){
+				return $http.put(API_BASE + 'log', {log: logToUpdate});
+			}
+		}
+})();
 (function(){
 	angular.module('workoutlog')
 		//  JavaScript has a window object but it is a global variable.  This makes testing and maintenance difficult.  $window is Angular’s window object and helps increase testing and maintenance by controlling the scope.
