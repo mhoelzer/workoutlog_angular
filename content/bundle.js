@@ -1,20 +1,28 @@
 (function(){
 	var app = angular.module('workoutlog',[
+<<<<<<< HEAD
 		'ui.router',
 		'workoutlog.auth.signup',
 		'workoutlog.auth.signin',
 		'workoutlog.define',
 		'workoutlog.logs',
 		'workoutlog.history'
+=======
+		'ui.router'
+>>>>>>> master
 	]);
 	function config($urlRouterProvider){
 		$urlRouterProvider.otherwise('/signin');
 	}
+<<<<<<< HEAD
 	// $inject: directive form angular to inject dependecies
+=======
+>>>>>>> master
 	config.$inject = ['$urlRouterProvider'];
 	app.config(config);
 	app.constant('API_BASE', '//localhost:3000/api/');
 })();
+<<<<<<< HEAD
 // 	Notice how LogsService is injected and then implemented in this controller.  The history component is used to present the collection of logs.  Look inside vm.updateLog, $state.go has the route as the first argument but the second argument is an object with an id property.  This is how logs.js ‘knows” which log to get so it can be updated.
 
 (function(){
@@ -489,4 +497,6 @@
 			return new UsersService();
 		}]);
 })();
+=======
+>>>>>>> master
 //# sourceMappingURL=bundle.js.map
