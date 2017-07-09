@@ -13,7 +13,10 @@
 				return $http.post(API_BASE + 'definition',{
 					definition: definition
 				}).then(function(response){
+					// unshift is lke push but puts data at front of array, not back. sutff gets sabed into array
 					defineService.userDefinitions.unshift(response.data);
+					console.log(response.data);
+					console.log(defineService.userDefinitions);
 				});
 			};
 			

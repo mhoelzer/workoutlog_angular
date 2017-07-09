@@ -4,7 +4,8 @@
 		'workoutlog.auth.signup',
 		'workoutlog.auth.signin',
 		'workoutlog.define',
-		'workoutlog.logs'
+		'workoutlog.logs',
+		'workoutlog.history'
 	]);
 	function config($urlRouterProvider){
 		$urlRouterProvider.otherwise('/signin');
@@ -13,53 +14,6 @@
 	config.$inject = ['$urlRouterProvider'];
 	app.config(config);
 	app.constant('API_BASE', '//localhost:3000/api/');
-})();
-(function(){
-	angular.module('workoutlog.define', [
-		'ui.router'
-	]) 
-	.config(defineConfig)
-	
-	function defineConfig($stateProvider){
-		$stateProvider
-			.state('define',{
-				url: '/define',
-				templateUrl: '/components/define/define.html',
-				controller: DefineController,
-				controllerAs: 'ctrl',
-				bindToController: this,
-				resolve: [
-					'CurrentUser', '$q', '$state',
-					function(CurrentUser, $q, $state){
-						var deferred = $q.defer();
-						if (CurrentUser.isSignedIn()){
-							deferred.resolve();
-						} else {
-							deferred.reject();
-							$state.go('signin');
-						}
-						return deferred.promise;
-					}
-				]
-			})
-	};
-
-	defineConfig.$inject = ['$stateProvider'];
-
-	function DefineController($state, DefineService){
-		var vm = this;
-		vm.message = "Define a workout category here";
-		vm.saved = false; 
-		vm.definition = {};
-		vm.save = function() {
-			DefineService.save(vm.definition)
-				.then(function(){
-					vm.saved = true;
-					$state.go('logs')
-				});
-		};
-	}
-	DefineController.$inject = ['$state', 'DefineService'];
 })();
 (function(){
 	angular
@@ -139,7 +93,36 @@
 		SignUpController.$inject = ['$state', 'UsersService'];
 })();
 // this will be the js file that “powers” the custom directive
+(function(){
+	angular.module('workoutlog')
+	.directive('userlinks',
+	function(){
+		UserLinksController.$inject = ['$state', 'CurrentUser', 'SessionToken'];
+		function UserLinksController($state, CurrentUser, SessionToken){
+			var vm = this;
+			vm.user = function(){
+				return CurrentUser.get();
+			};
+			vm.signedIn = function(){
+				return !!(vm.user().id);
+			};
+			vm.logout = function(){
+				CurrentUser.clear();
+				SessionToken.clear();
+				$state.go('signin');
+			};
+		}
 
+		// This is where the directive is configured. It is similar to the configuration of the other components. One item to note is the scope: {}; creates an isolated scope. This isolates the data to that portion of the application
+		return{
+			scope: {},
+			controller: UserLinksController,
+			controllerAs: 'ctrl',
+			bindToController: true,
+			templateUrl: '/components/auth/userlinks.html',
+		};
+	});
+})();
 (function(){
 	angular.module('workoutlog.logs', [
 		'ui.router'
@@ -183,12 +166,14 @@
 			});
 	}
 
+	//how building the log
 	LogsController.$inject = ['$state', 'DefineService', 'LogsService'];
 	function LogsController($state, DefineService, LogsService){
 		var vm = this;
 		vm.saved = false;
 		vm.log = {};
-		vm.UserDefinitions = DefineService.getDefinitions();
+		// should return defs that weve made. if not seeing, this is worng
+		vm.userDefinitions = DefineService.getDefinitions();
 		vm.updateLog = LogsService.getLog();
 		vm.save = function(){
 			LogsService.save(vm.log)
@@ -198,7 +183,7 @@
 				});
 		};
 
-		// create an update function here
+		// create an update function here. rebuilding
 		vm.updateSingleLog = function() {
 			var logToUpdate = {
 				id: vm.updateLog.id,
@@ -212,6 +197,94 @@
 				});
 		};
 	}
+})();
+// 	Notice how LogsService is injected and then implemented in this controller.  The history component is used to present the collection of logs.  Look inside vm.updateLog, $state.go has the route as the first argument but the second argument is an object with an id property.  This is how logs.js ‘knows” which log to get so it can be updated.
+
+(function(){
+	angular.module('workoutlog.history', [
+		'ui.router'
+	]) 
+	.config(historyConfig)
+	historyConfig.$inject = ['$stateProvider'];
+	
+	function historyConfig($stateProvider){
+		$stateProvider
+			.state('history',{
+				url: '/history',
+				templateUrl: '/components/history/history.html',
+				controller: HistoryController,
+				controllerAs: 'ctrl',
+				bindToController: this,
+				resolve: {
+					getUserLogs: [
+						'LogsService',
+						function(LogsService){
+							return LogsService.fetch();
+						}
+					]
+				}
+			});
+	};
+
+	HistoryController.$inject = ['$state', 'LogsService'];
+
+	function HistoryController($state, LogsService){
+		var vm = this;
+		vm.history = LogsService.getLogs();
+		vm.delete = function(item){
+			LogsService.deleteLogs(item);
+		};
+		vm.updateLog = function(item) {
+			$state.go('logs/update', { 'id': item.id});
+		};
+	}
+})();
+(function(){
+	angular.module('workoutlog.define', [
+		'ui.router'
+	]) 
+	.config(defineConfig)
+	
+	function defineConfig($stateProvider){
+		$stateProvider
+			.state('define',{
+				url: '/define',
+				templateUrl: '/components/define/define.html',
+				controller: DefineController,
+				controllerAs: 'ctrl',
+				bindToController: this,
+				resolve: [
+					'CurrentUser', '$q', '$state',
+					function(CurrentUser, $q, $state){
+						var deferred = $q.defer();
+						if (CurrentUser.isSignedIn()){
+							deferred.resolve();
+						} else {
+							deferred.reject();
+							$state.go('signin');
+						}
+						return deferred.promise;
+					}
+				]
+			})
+	};
+
+	defineConfig.$inject = ['$stateProvider'];
+
+	function DefineController($state, DefineService){
+		var vm = this;
+		vm.message = "Define a workout category here";
+		vm.saved = false; 
+		vm.definition = {};
+		vm.save = function() {
+			DefineService.save(vm.definition)
+				.then(function(){
+					vm.saved = true;
+					$state.go('logs')
+				});
+		};
+	}
+	DefineController.$inject = ['$state', 'DefineService'];
 })();
 (function(){
 	angular.module('workoutlog')
@@ -283,7 +356,10 @@
 				return $http.post(API_BASE + 'definition',{
 					definition: definition
 				}).then(function(response){
+					// unshift is lke push but puts data at front of array, not back. sutff gets sabed into array
 					defineService.userDefinitions.unshift(response.data);
+					console.log(response.data);
+					console.log(defineService.userDefinitions);
 				});
 			};
 			
@@ -299,6 +375,7 @@
 			}
 		};
 })();
+// obj get built and send ot db
 (function(){
 	angular.module('workoutlog')
 		.service('LogsService', LogsService);
@@ -310,6 +387,7 @@
 			logsService.individualLog = {};
 			// saves the log
 			logsService.save = function(log){
+				// buuilds like postman. gets sent to server
 				return $http.post(API_BASE + 'log',{
 					log: log
 				}).then(function(response){

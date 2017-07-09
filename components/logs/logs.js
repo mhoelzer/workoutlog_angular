@@ -41,12 +41,14 @@
 			});
 	}
 
+	//how building the log
 	LogsController.$inject = ['$state', 'DefineService', 'LogsService'];
 	function LogsController($state, DefineService, LogsService){
 		var vm = this;
 		vm.saved = false;
 		vm.log = {};
-		vm.UserDefinitions = DefineService.getDefinitions();
+		// should return defs that weve made. if not seeing, this is worng
+		vm.userDefinitions = DefineService.getDefinitions();
 		vm.updateLog = LogsService.getLog();
 		vm.save = function(){
 			LogsService.save(vm.log)
@@ -56,7 +58,7 @@
 				});
 		};
 
-		// create an update function here
+		// create an update function here. rebuilding
 		vm.updateSingleLog = function() {
 			var logToUpdate = {
 				id: vm.updateLog.id,

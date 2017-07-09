@@ -1,3 +1,4 @@
+// obj get built and send ot db
 (function(){
 	angular.module('workoutlog')
 		.service('LogsService', LogsService);
@@ -9,6 +10,7 @@
 			logsService.individualLog = {};
 			// saves the log
 			logsService.save = function(log){
+				// buuilds like postman. gets sent to server
 				return $http.post(API_BASE + 'log',{
 					log: log
 				}).then(function(response){
