@@ -15,6 +15,169 @@
 	app.config(config);
 	app.constant('API_BASE', '//localhost:3000/api/');
 })();
+// 	Notice how LogsService is injected and then implemented in this controller.  The history component is used to present the collection of logs.  Look inside vm.updateLog, $state.go has the route as the first argument but the second argument is an object with an id property.  This is how logs.js ‘knows” which log to get so it can be updated.
+
+(function(){
+	angular.module('workoutlog.history', [
+		'ui.router'
+	]) 
+	.config(historyConfig)
+	historyConfig.$inject = ['$stateProvider'];
+	
+	function historyConfig($stateProvider){
+		$stateProvider
+			.state('history',{
+				url: '/history',
+				templateUrl: '/components/history/history.html',
+				controller: HistoryController,
+				controllerAs: 'ctrl',
+				bindToController: this,
+				resolve: {
+					getUserLogs: [
+						'LogsService',
+						function(LogsService){
+							return LogsService.fetch();
+						}
+					]
+				}
+			});
+	};
+
+	HistoryController.$inject = ['$state', 'LogsService'];
+
+	function HistoryController($state, LogsService){
+		var vm = this;
+		vm.history = LogsService.getLogs();
+		vm.delete = function(item){
+			LogsService.deleteLogs(item);
+		};
+		vm.updateLog = function(item) {
+			$state.go('logs/update', { 'id': item.id});
+		};
+	}
+})();
+(function(){
+	angular.module('workoutlog.define', [
+		'ui.router'
+	]) 
+	.config(defineConfig)
+	
+	function defineConfig($stateProvider){
+		$stateProvider
+			.state('define',{
+				url: '/define',
+				templateUrl: '/components/define/define.html',
+				controller: DefineController,
+				controllerAs: 'ctrl',
+				bindToController: this,
+				resolve: [
+					'CurrentUser', '$q', '$state',
+					function(CurrentUser, $q, $state){
+						var deferred = $q.defer();
+						if (CurrentUser.isSignedIn()){
+							deferred.resolve();
+						} else {
+							deferred.reject();
+							$state.go('signin');
+						}
+						return deferred.promise;
+					}
+				]
+			})
+	};
+
+	defineConfig.$inject = ['$stateProvider'];
+
+	function DefineController($state, DefineService){
+		var vm = this;
+		vm.message = "Define a workout category here";
+		vm.saved = false; 
+		vm.definition = {};
+		vm.save = function() {
+			DefineService.save(vm.definition)
+				.then(function(){
+					vm.saved = true;
+					$state.go('logs')
+				});
+		};
+	}
+	DefineController.$inject = ['$state', 'DefineService'];
+})();
+(function(){
+	angular.module('workoutlog.logs', [
+		'ui.router'
+	])
+	.config(logsConfig);
+
+	logsConfig.$inject = ['$stateProvider'];
+	function logsConfig($stateProvider){
+		$stateProvider
+			.state('logs',{
+				url: '/logs',
+				templateUrl: '/components/logs/logs.html',
+				controller: LogsController,
+				controllerAs: 'ctrl',
+				bindToController: this,
+				resolve: {
+					getUserDefinitions: [
+						'DefineService',
+						function(DefineService){
+							return DefineService.fetch();
+						}
+					]
+				}
+			})
+			//  Notice in the .state(‘logs/update’) the ‘/:id’.  This is the variable that is passed to $stateParams.id. Notice on the .state(‘logs/update’) that there are two functions that occur on the resolve.  This allows the route to have access to the data of the log being edited.  Also note, that the resolve is getting all user definitions of a workout.
+			.state('logs/update', {
+				url: '/logs/:id', 
+				templateUrl: '/components/logs/log-update.html',
+				controller: LogsController,
+				controllerAs: 'ctrl',
+				bindToController: this,
+				resolve: {
+					getSingleLog: function($stateParams, LogsService){
+						// $stateParams.id allows the application to pass the url and use that as a way to identify an individual workout.  Notice in the .state(‘logs/update’) the ‘/:id’.  This is the variable that is passed to $stateParams.id.
+						return LogsService.fetchOne($stateParams.id);
+					},
+					getUserDefinitions: function(DefineService){
+						return DefineService.fetch();
+					}
+				}
+			});
+	}
+
+	//how building the log
+	LogsController.$inject = ['$state', 'DefineService', 'LogsService'];
+	function LogsController($state, DefineService, LogsService){
+		var vm = this;
+		vm.saved = false;
+		vm.log = {};
+		// should return defs that weve made. if not seeing, this is worng
+		vm.userDefinitions = DefineService.getDefinitions();
+		vm.updateLog = LogsService.getLog();
+		vm.save = function(){
+			LogsService.save(vm.log)
+				.then(function(){
+					vm.saved = true;
+					$state.go('history');
+				});
+		};
+
+		// create an update function here. rebuilding
+		vm.updateSingleLog = function() {
+			var logToUpdate = {
+				id: vm.updateLog.id,
+				desc: vm.updateLog.description,
+				result: vm.updateLog.result,
+				def: vm.updateLog.def
+			}
+			LogsService.updateLog(logToUpdate)
+				.then(function(){
+					$state.go('history');
+				});
+		};
+	}
+})();
 (function(){
 	angular
 		.module('workoutlog.auth.signin', ['ui.router'])
@@ -122,169 +285,6 @@
 			templateUrl: '/components/auth/userlinks.html',
 		};
 	});
-})();
-(function(){
-	angular.module('workoutlog.logs', [
-		'ui.router'
-	])
-	.config(logsConfig);
-
-	logsConfig.$inject = ['$stateProvider'];
-	function logsConfig($stateProvider){
-		$stateProvider
-			.state('logs',{
-				url: '/logs',
-				templateUrl: '/components/logs/logs.html',
-				controller: LogsController,
-				controllerAs: 'ctrl',
-				bindToController: this,
-				resolve: {
-					getUserDefinitions: [
-						'DefineService',
-						function(DefineService){
-							return DefineService.fetch();
-						}
-					]
-				}
-			})
-			//  Notice in the .state(‘logs/update’) the ‘/:id’.  This is the variable that is passed to $stateParams.id. Notice on the .state(‘logs/update’) that there are two functions that occur on the resolve.  This allows the route to have access to the data of the log being edited.  Also note, that the resolve is getting all user definitions of a workout.
-			.state('logs/update', {
-				url: '/logs/:id', 
-				templateUrl: '/components/logs/log-update.html',
-				controller: LogsController,
-				controllerAs: 'ctrl',
-				bindToController: this,
-				resolve: {
-					getSingleLog: function($stateParams, LogsService){
-						// $stateParams.id allows the application to pass the url and use that as a way to identify an individual workout.  Notice in the .state(‘logs/update’) the ‘/:id’.  This is the variable that is passed to $stateParams.id.
-						return LogsService.fetchOne($stateParams.id);
-					},
-					getUserDefinitions: function(DefineService){
-						return DefineService.fetch();
-					}
-				}
-			});
-	}
-
-	//how building the log
-	LogsController.$inject = ['$state', 'DefineService', 'LogsService'];
-	function LogsController($state, DefineService, LogsService){
-		var vm = this;
-		vm.saved = false;
-		vm.log = {};
-		// should return defs that weve made. if not seeing, this is worng
-		vm.userDefinitions = DefineService.getDefinitions();
-		vm.updateLog = LogsService.getLog();
-		vm.save = function(){
-			LogsService.save(vm.log)
-				.then(function(){
-					vm.saved = true;
-					$state.go('history');
-				});
-		};
-
-		// create an update function here. rebuilding
-		vm.updateSingleLog = function() {
-			var logToUpdate = {
-				id: vm.updateLog.id,
-				desc: vm.updateLog.description,
-				result: vm.updateLog.result,
-				def: vm.updateLog.def
-			}
-			LogsService.updateLog(logToUpdate)
-				.then(function(){
-					$state.go('history');
-				});
-		};
-	}
-})();
-// 	Notice how LogsService is injected and then implemented in this controller.  The history component is used to present the collection of logs.  Look inside vm.updateLog, $state.go has the route as the first argument but the second argument is an object with an id property.  This is how logs.js ‘knows” which log to get so it can be updated.
-
-(function(){
-	angular.module('workoutlog.history', [
-		'ui.router'
-	]) 
-	.config(historyConfig)
-	historyConfig.$inject = ['$stateProvider'];
-	
-	function historyConfig($stateProvider){
-		$stateProvider
-			.state('history',{
-				url: '/history',
-				templateUrl: '/components/history/history.html',
-				controller: HistoryController,
-				controllerAs: 'ctrl',
-				bindToController: this,
-				resolve: {
-					getUserLogs: [
-						'LogsService',
-						function(LogsService){
-							return LogsService.fetch();
-						}
-					]
-				}
-			});
-	};
-
-	HistoryController.$inject = ['$state', 'LogsService'];
-
-	function HistoryController($state, LogsService){
-		var vm = this;
-		vm.history = LogsService.getLogs();
-		vm.delete = function(item){
-			LogsService.deleteLogs(item);
-		};
-		vm.updateLog = function(item) {
-			$state.go('logs/update', { 'id': item.id});
-		};
-	}
-})();
-(function(){
-	angular.module('workoutlog.define', [
-		'ui.router'
-	]) 
-	.config(defineConfig)
-	
-	function defineConfig($stateProvider){
-		$stateProvider
-			.state('define',{
-				url: '/define',
-				templateUrl: '/components/define/define.html',
-				controller: DefineController,
-				controllerAs: 'ctrl',
-				bindToController: this,
-				resolve: [
-					'CurrentUser', '$q', '$state',
-					function(CurrentUser, $q, $state){
-						var deferred = $q.defer();
-						if (CurrentUser.isSignedIn()){
-							deferred.resolve();
-						} else {
-							deferred.reject();
-							$state.go('signin');
-						}
-						return deferred.promise;
-					}
-				]
-			})
-	};
-
-	defineConfig.$inject = ['$stateProvider'];
-
-	function DefineController($state, DefineService){
-		var vm = this;
-		vm.message = "Define a workout category here";
-		vm.saved = false; 
-		vm.definition = {};
-		vm.save = function() {
-			DefineService.save(vm.definition)
-				.then(function(){
-					vm.saved = true;
-					$state.go('logs')
-				});
-		};
-	}
-	DefineController.$inject = ['$state', 'DefineService'];
 })();
 (function(){
 	angular.module('workoutlog')
