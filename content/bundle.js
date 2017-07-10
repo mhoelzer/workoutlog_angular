@@ -27,6 +27,53 @@
 	app.constant('API_BASE', API_BASE);
 })();
 (function(){
+	angular.module('workoutlog.define', [
+		'ui.router'
+	]) 
+	.config(defineConfig)
+	
+	function defineConfig($stateProvider){
+		$stateProvider
+			.state('define',{
+				url: '/define',
+				templateUrl: '/components/define/define.html',
+				controller: DefineController,
+				controllerAs: 'ctrl',
+				bindToController: this,
+				resolve: [
+					'CurrentUser', '$q', '$state',
+					function(CurrentUser, $q, $state){
+						var deferred = $q.defer();
+						if (CurrentUser.isSignedIn()){
+							deferred.resolve();
+						} else {
+							deferred.reject();
+							$state.go('signin');
+						}
+						return deferred.promise;
+					}
+				]
+			})
+	};
+
+	defineConfig.$inject = ['$stateProvider'];
+
+	function DefineController($state, DefineService){
+		var vm = this;
+		vm.message = "Define a workout category here";
+		vm.saved = false; 
+		vm.definition = {};
+		vm.save = function() {
+			DefineService.save(vm.definition)
+				.then(function(){
+					vm.saved = true;
+					$state.go('logs')
+				});
+		};
+	}
+	DefineController.$inject = ['$state', 'DefineService'];
+})();
+(function(){
 	angular
 		.module('workoutlog.auth.signin', ['ui.router'])
 		.config(signinConfig);
@@ -134,94 +181,6 @@
 		};
 	});
 })();
-// 	Notice how LogsService is injected and then implemented in this controller.  The history component is used to present the collection of logs.  Look inside vm.updateLog, $state.go has the route as the first argument but the second argument is an object with an id property.  This is how logs.js ‘knows” which log to get so it can be updated.
-
-(function(){
-	angular.module('workoutlog.history', [
-		'ui.router'
-	]) 
-	.config(historyConfig)
-	historyConfig.$inject = ['$stateProvider'];
-	
-	function historyConfig($stateProvider){
-		$stateProvider
-			.state('history',{
-				url: '/history',
-				templateUrl: '/components/history/history.html',
-				controller: HistoryController,
-				controllerAs: 'ctrl',
-				bindToController: this,
-				resolve: {
-					getUserLogs: [
-						'LogsService',
-						function(LogsService){
-							return LogsService.fetch();
-						}
-					]
-				}
-			});
-	};
-
-	HistoryController.$inject = ['$state', 'LogsService'];
-
-	function HistoryController($state, LogsService){
-		var vm = this;
-		vm.history = LogsService.getLogs();
-		vm.delete = function(item){
-			LogsService.deleteLogs(item);
-		};
-		vm.updateLog = function(item) {
-			$state.go('logs/update', { 'id': item.id});
-		};
-	}
-})();
-(function(){
-	angular.module('workoutlog.define', [
-		'ui.router'
-	]) 
-	.config(defineConfig)
-	
-	function defineConfig($stateProvider){
-		$stateProvider
-			.state('define',{
-				url: '/define',
-				templateUrl: '/components/define/define.html',
-				controller: DefineController,
-				controllerAs: 'ctrl',
-				bindToController: this,
-				resolve: [
-					'CurrentUser', '$q', '$state',
-					function(CurrentUser, $q, $state){
-						var deferred = $q.defer();
-						if (CurrentUser.isSignedIn()){
-							deferred.resolve();
-						} else {
-							deferred.reject();
-							$state.go('signin');
-						}
-						return deferred.promise;
-					}
-				]
-			})
-	};
-
-	defineConfig.$inject = ['$stateProvider'];
-
-	function DefineController($state, DefineService){
-		var vm = this;
-		vm.message = "Define a workout category here";
-		vm.saved = false; 
-		vm.definition = {};
-		vm.save = function() {
-			DefineService.save(vm.definition)
-				.then(function(){
-					vm.saved = true;
-					$state.go('logs')
-				});
-		};
-	}
-	DefineController.$inject = ['$state', 'DefineService'];
-})();
 (function(){
 	angular.module('workoutlog.logs', [
 		'ui.router'
@@ -294,6 +253,47 @@
 				.then(function(){
 					$state.go('history');
 				});
+		};
+	}
+})();
+// 	Notice how LogsService is injected and then implemented in this controller.  The history component is used to present the collection of logs.  Look inside vm.updateLog, $state.go has the route as the first argument but the second argument is an object with an id property.  This is how logs.js ‘knows” which log to get so it can be updated.
+
+(function(){
+	angular.module('workoutlog.history', [
+		'ui.router'
+	]) 
+	.config(historyConfig)
+	historyConfig.$inject = ['$stateProvider'];
+	
+	function historyConfig($stateProvider){
+		$stateProvider
+			.state('history',{
+				url: '/history',
+				templateUrl: '/components/history/history.html',
+				controller: HistoryController,
+				controllerAs: 'ctrl',
+				bindToController: this,
+				resolve: {
+					getUserLogs: [
+						'LogsService',
+						function(LogsService){
+							return LogsService.fetch();
+						}
+					]
+				}
+			});
+	};
+
+	HistoryController.$inject = ['$state', 'LogsService'];
+
+	function HistoryController($state, LogsService){
+		var vm = this;
+		vm.history = LogsService.getLogs();
+		vm.delete = function(item){
+			LogsService.deleteLogs(item);
+		};
+		vm.updateLog = function(item) {
+			$state.go('logs/update', { 'id': item.id});
 		};
 	}
 })();
