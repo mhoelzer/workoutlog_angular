@@ -1,12 +1,12 @@
 (function(){
 	var app = angular.module('workoutlog',[
 		'ui.router',
-		'workoutlog.auth.signup',
-		'workoutlog.auth.signin',
 		'workoutlog.define',
 		'workoutlog.logs',
 		'workoutlog.history',
-		'workoutlog.feed'
+		'workoutlog.feed',
+		'workoutlog.auth.signup',
+		'workoutlog.auth.signin'
 	])
 	.factory('socket', function(socketFactory){
 		var myIoSocket = io.connect('http://localhost:3000');
