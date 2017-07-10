@@ -16,6 +16,53 @@
 	app.constant('API_BASE', '//localhost:3000/api/');
 })();
 (function(){
+	angular.module('workoutlog.define', [
+		'ui.router'
+	]) 
+	.config(defineConfig)
+	
+	function defineConfig($stateProvider){
+		$stateProvider
+			.state('define',{
+				url: '/define',
+				templateUrl: '/components/define/define.html',
+				controller: DefineController,
+				controllerAs: 'ctrl',
+				bindToController: this,
+				resolve: [
+					'CurrentUser', '$q', '$state',
+					function(CurrentUser, $q, $state){
+						var deferred = $q.defer();
+						if (CurrentUser.isSignedIn()){
+							deferred.resolve();
+						} else {
+							deferred.reject();
+							$state.go('signin');
+						}
+						return deferred.promise;
+					}
+				]
+			})
+	};
+
+	defineConfig.$inject = ['$stateProvider'];
+
+	function DefineController($state, DefineService){
+		var vm = this;
+		vm.message = "Define a workout category here";
+		vm.saved = false; 
+		vm.definition = {};
+		vm.save = function() {
+			DefineService.save(vm.definition)
+				.then(function(){
+					vm.saved = true;
+					$state.go('logs')
+				});
+		};
+	}
+	DefineController.$inject = ['$state', 'DefineService'];
+})();
+(function(){
 	angular
 		.module('workoutlog.auth.signin', ['ui.router'])
 		.config(signinConfig);
@@ -122,53 +169,6 @@
 			templateUrl: '/components/auth/userlinks.html',
 		};
 	});
-})();
-(function(){
-	angular.module('workoutlog.define', [
-		'ui.router'
-	]) 
-	.config(defineConfig)
-	
-	function defineConfig($stateProvider){
-		$stateProvider
-			.state('define',{
-				url: '/define',
-				templateUrl: '/components/define/define.html',
-				controller: DefineController,
-				controllerAs: 'ctrl',
-				bindToController: this,
-				resolve: [
-					'CurrentUser', '$q', '$state',
-					function(CurrentUser, $q, $state){
-						var deferred = $q.defer();
-						if (CurrentUser.isSignedIn()){
-							deferred.resolve();
-						} else {
-							deferred.reject();
-							$state.go('signin');
-						}
-						return deferred.promise;
-					}
-				]
-			})
-	};
-
-	defineConfig.$inject = ['$stateProvider'];
-
-	function DefineController($state, DefineService){
-		var vm = this;
-		vm.message = "Define a workout category here";
-		vm.saved = false; 
-		vm.definition = {};
-		vm.save = function() {
-			DefineService.save(vm.definition)
-				.then(function(){
-					vm.saved = true;
-					$state.go('logs')
-				});
-		};
-	}
-	DefineController.$inject = ['$state', 'DefineService'];
 })();
 // 	Notice how LogsService is injected and then implemented in this controller.  The history component is used to present the collection of logs.  Look inside vm.updateLog, $state.go has the route as the first argument but the second argument is an object with an id property.  This is how logs.js ‘knows” which log to get so it can be updated.
 
