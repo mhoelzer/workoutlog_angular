@@ -4,7 +4,7 @@
   "description": "",
   "main": "app.js",
   "scripts": {
-  	"start": "./node_modules/.bin/http-server -a localhost -p 8080",
+  	"start": "./node_modules/.bin/http-server",
   	"prestart": "npm install",
   	"postinstall": "bower install"
   },
