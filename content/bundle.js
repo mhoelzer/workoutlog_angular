@@ -6,7 +6,7 @@
 		'workoutlog.define',
 		'workoutlog.logs',
 		'workoutlog.history'
-	]);
+	])
 	.factory('socket', function(socketFactory){
 		var myIoSocket = io.connect('http://localhost:3000');
 		var socket = socketFactory({
